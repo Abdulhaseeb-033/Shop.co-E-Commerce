@@ -11,7 +11,7 @@ const ProductProvider = ({children}) => {
         try {
             setLoading(true);
 
-            const response = await fetch("http://localhost:3000/api/products");
+            const response = await fetch("https://shop-co-e-commerce-coral.vercel.app/api/products");
 
             if(!response.ok) {
                 throw new Error("Failed to fetch products");
