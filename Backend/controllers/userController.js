@@ -18,7 +18,7 @@ export const getUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
     try {
-        const user = await  User.findById({
+        const user = await  User.findOne({
             _id: req.params.id,
             role: "user"
         }).select("-password");
@@ -40,7 +40,7 @@ export const getUserById = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
     try {
-        const user = await User.findByIdAndDelete({
+        const user = await User.findOneAndDelete({
             _id: req.params.id,
             role: "user"
         });
