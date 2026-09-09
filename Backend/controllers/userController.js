@@ -2,7 +2,7 @@ import User from "../models/User.js";
 
 export const getUsers = async (req, res) => {
     try {
-        const users = await User.find().select("-password");
+        const users = await User.find({role: "user"}).select("-password");
 
         res.status(200).json({
             message: "Users fetched successfully",
@@ -18,7 +18,10 @@ export const getUsers = async (req, res) => {
 
 export const getUserById = async (req, res) => {
     try {
-        const user = await  User.findById(req.params.id).select("-password");
+        const user = await  User.findById({
+            _id: req.params.id,
+            role: "user"
+        }).select("-password");
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -37,7 +40,10 @@ export const getUserById = async (req, res) => {
 
 export const deleteUser = async (req, res) => {
     try {
-        const user = await User.findByIdAndDelete(req.params.id);
+        const user = await User.findByIdAndDelete({
+            _id: req.params.id,
+            role: "user"
+        });
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
