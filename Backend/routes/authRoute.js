@@ -6,11 +6,5 @@ import adminMiddleware from "../middleware/adminmiddleware.js";
 const router = express.Router();
 router.post("/signup", signup);
 router.post("/login", login);
-router.get("/admin-test", authMiddleware, adminMiddleware, (req, res) => {
-    res.json({ 
-        message: "Welcome Admin",
-        user: req.user
-    });
-});
 
 export default router;
