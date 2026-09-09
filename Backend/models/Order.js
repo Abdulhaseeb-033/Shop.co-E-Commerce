@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import Product from "./Product";
 
 const orderSchema = new mongoose.Schema(
     {
@@ -35,7 +34,7 @@ const orderSchema = new mongoose.Schema(
                 required: true
             },
             
-            appartment: {
+            apartment: {
                 type: String,
                 default:""
             },
@@ -121,7 +120,7 @@ const orderSchema = new mongoose.Schema(
         },
         
         paymentMethod: {
-            type: Number,
+            type: String,
             enum: ["card", "cod"],
             required: true
         },
