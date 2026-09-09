@@ -8,7 +8,7 @@ const authMiddleware = (req, res, next) => {
             return res.status(401).json({ message: "Authorization token is required" });
         }
 
-        const token = authHeader.statusWith("Bearer ") ? authHeader.split(" ")[1] : null;
+        const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 
         if (!token) {
             return res.status(401).json({ message: "Invalid authorization format" });
