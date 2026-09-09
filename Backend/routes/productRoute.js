@@ -1,8 +1,9 @@
 import express from "express";
 import { createProduct, getProducts, getProductById, updateProduct, deleteProduct } from "../controllers/productController.js";
+import upload from "../middleware/upload.js";
 
 const router = express.Router();
- router.post("/", createProduct);
+ router.post("/", upload.array("images", 5), createProduct);
  router.get("/", getProducts);
  router.get("/:id", getProductById);
  router.put("/:id", updateProduct);
