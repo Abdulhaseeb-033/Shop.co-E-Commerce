@@ -12,7 +12,19 @@ export const createProduct = async (req, res) => {
             }
         }
         const product = await Product.create({ 
-            ...req.body, 
+            name: req.body.name,
+            shortDescription: req.body.shortDescription,
+            description: req.body.description,
+            price: req.body.Number(req.body.price),
+            discount: req.body.Number(req.body.discount),
+            category: req.body.category,
+            dressStylr: req.body.dressStyle,
+            stock: req.body.Number(req.body.stock),
+            isNewArrival: req.body.isNewArrival === "true",
+            isTopSelling: req.body.isTopSelling === "true",
+            colors: req.body.colors ? JSON.parse(req.body.colors):[],
+            sizes: req.body.sizes ? JSON.parse(req.body.sizes):[],
+            details: req.body.details ? JSON.parse(req.body.details):[],
             images: imageUrls
          });
 
