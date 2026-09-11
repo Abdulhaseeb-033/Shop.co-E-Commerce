@@ -7,7 +7,7 @@ import adminMiddleware from "../middleware/adminmiddleware.js";
 const router = express.Router();
 
 router.post("/", authMiddleware, createOrder);
-router.get("/", authMiddleware, adminMiddleware, getOrders);
-router.get("/:id", authMiddleware, adminMiddleware, getOrderById);
-router.patch("/:id", authMiddleware, adminMiddleware, updateOrderStatus);
+router.get("/", getOrders);
+router.get("/:id", getOrderById);
+router.patch("/:id", updateOrderStatus);
 export default router;

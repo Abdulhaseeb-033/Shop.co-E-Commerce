@@ -5,8 +5,8 @@ import adminMiddleware from "../middleware/adminmiddleware.js";
 
 const router = express.Router();
 
-router.get("/", authMiddleware, adminMiddleware, getUsers);
-router.get("/:id", authMiddleware, adminMiddleware, getUserById);
-router.delete("/:id", authMiddleware, adminMiddleware, deleteUser);
+router.get("/", getUsers);
+router.get("/:id", getUserById);
+router.delete("/:id", deleteUser);
 
 export default router;
