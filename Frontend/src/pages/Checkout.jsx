@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FiChevronRight,
   FiShoppingBag,
@@ -13,12 +13,21 @@ import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import Newsletter from "../components/layout/Newsletter";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+
+const API_BASE_URL = "https://shop-co-e-commerce-coral.vercel.app";
 
 function Checkout() {
-  const { cart, subtotal, discountTotal, deliveryFee, total, clearCart } =
-    useCart();
+  const navigate = useNavigate();
+  const { user, token, isAuthenticated } = useAuth();
+  const { cart, subtotal, discountTotal, deliveryFee, total, clearCart } = useCart();
 
-  // Form State
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login?redirect=/checkout", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
   const [formData, setFormData] = useState({
     email: "",
     phone: "",
@@ -36,23 +45,36 @@ function Checkout() {
     cvv: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState("card"); // 'card' | 'cod'
+  useEffect(() => {
+    if (user) {
+      const names = (user.name || "").trim().split(" ");
+      const first = names[0] || "";
+      const last = names.slice(1).join(" ") || "";
+      setFormData((prev) => ({
+        ...prev,
+        email: prev.email || user.email || "",
+        firstName: prev.firstName || first,
+        lastName: prev.lastName || last,
+      }));
+    }
+  }, [user]);
+
+  const [paymentMethod, setPaymentMethod] = useState("card"); 
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
   const [isOrderPlaced, setIsOrderPlaced] = useState(false);
   const [placedOrderDetails, setPlacedOrderDetails] = useState(null);
 
-  // Handle Form Change
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formattedValue = value;
 
-    // Auto-format card number with spaces (16 digits -> 4 groups of 4)
     if (name === "cardNumber") {
       const clean = value.replace(/\D/g, "").slice(0, 16);
       formattedValue = clean.replace(/(\d{4})(?=\d)/g, "$1 ");
     }
 
-    // Auto-format expiry date (MM/YY)
     if (name === "expiryDate") {
       const clean = value.replace(/\D/g, "").slice(0, 4);
       if (clean.length >= 3) {
@@ -62,7 +84,6 @@ function Checkout() {
       }
     }
 
-    // Auto-format CVV (up to 4 digits)
     if (name === "cvv") {
       formattedValue = value.replace(/\D/g, "").slice(0, 4);
     }
@@ -72,20 +93,20 @@ function Checkout() {
       [name]: formattedValue,
     }));
 
-    // Clear error on change if fixed
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
         [name]: "",
       }));
     }
+    if (apiError) {
+      setApiError("");
+    }
   };
 
-  // Validate form fields
   const validateForm = () => {
     const newErrors = {};
 
-    // Contact
     if (!formData.email.trim()) {
       newErrors.email = "Email address is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
@@ -98,7 +119,6 @@ function Checkout() {
       newErrors.phone = "Please enter a valid phone number";
     }
 
-    // Shipping
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
     if (!formData.address.trim()) newErrors.address = "Street address is required";
@@ -110,7 +130,6 @@ function Checkout() {
       newErrors.postalCode = "Please enter a valid postal code";
     }
 
-    // Payment (if Card is selected)
     if (paymentMethod === "card") {
       if (!formData.cardName.trim()) {
         newErrors.cardName = "Cardholder name is required";
@@ -140,12 +159,10 @@ function Checkout() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle Order Placement
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      // Scroll to the first error
       const firstErrorKey = Object.keys(errors)[0];
       if (firstErrorKey) {
         const el = document.getElementById(firstErrorKey);
@@ -154,43 +171,115 @@ function Checkout() {
       return;
     }
 
-    // Generate simulated order confirmation details
-    const orderId = `SHOP-${Math.floor(100000 + Math.random() * 900000)}`;
-    const orderDetails = {
-      orderId,
-      items: [...cart],
-      total,
-      subtotal,
-      discountTotal,
-      deliveryFee,
-      customer: { ...formData },
-      date: new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-      estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-    };
+    if (!token) {
+      setApiError("Authentication session expired. Please log in again.");
+      navigate("/login?redirect=/checkout");
+      return;
+    }
 
-    setPlacedOrderDetails(orderDetails);
-    setIsOrderPlaced(true);
-    clearCart();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      setLoading(true);
+      setApiError("");
+
+      const orderPayload = {
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        shippingAddress: {
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          address: formData.address.trim(),
+          apartment: formData.apartment.trim() || "",
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postalCode: formData.postalCode.trim(),
+          country: formData.country || "United States",
+        },
+        items: cart.map((item) => {
+          const itemData = {
+            name: item.name,
+            image: item.image || "",
+            price: item.discountedPrice || item.price,
+            quantity: item.quantity,
+            size: item.size || "",
+            color: item.color || "",
+          };
+          if (item.productId && /^[0-9a-fA-F]{24}$/.test(item.productId)) {
+            itemData.product = item.productId;
+          }
+          return itemData;
+        }),
+        subtotal: Number(subtotal.toFixed(2)),
+        discount: Number(discountTotal.toFixed(2)),
+        deliveryFee: Number(deliveryFee.toFixed(2)),
+        totalAmount: Number(total.toFixed(2)),
+        paymentMethod: paymentMethod, 
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to place order. Please try again.");
+      }
+
+      const realOrder = data.order || {};
+      const realOrderId = realOrder._id || realOrder.id || "ORDER-SUCCESS";
+
+      const orderDetails = {
+        orderId: realOrderId,
+        items: realOrder.items || [...cart],
+        total: realOrder.totalAmount || total,
+        subtotal: realOrder.subtotal || subtotal,
+        discountTotal: realOrder.discount ?? discountTotal,
+        deliveryFee: realOrder.deliveryFee ?? deliveryFee,
+        customer: { ...formData },
+        date: new Date(realOrder.createdAt || Date.now()).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+        estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        }),
+      };
+
+      setPlacedOrderDetails(orderDetails);
+      setIsOrderPlaced(true);
+      clearCart();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setApiError(err.message || "Something went wrong while placing your order. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const discountPercent =
     subtotal > 0 ? Math.round((discountTotal / subtotal) * 100) : 0;
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <p className="text-black/60 text-sm font-medium">Redirecting to login...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
       <Header />
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-8 lg:px-16">
-        {/* Breadcrumb */}
         <nav className="mb-6 sm:mb-8 flex items-center gap-2 text-xs text-black/60 sm:text-sm">
           <Link to="/" className="hover:text-black transition-colors">
             Home
@@ -203,7 +292,6 @@ function Checkout() {
           <span className="font-semibold text-black">Checkout</span>
         </nav>
 
-        {/* ORDER SUCCESS STATE */}
         {isOrderPlaced && placedOrderDetails ? (
           <div className="mx-auto max-w-3xl my-8 sm:my-12">
             <div className="rounded-[24px] border border-black/10 bg-white p-6 sm:p-10 shadow-sm text-center">
@@ -220,10 +308,9 @@ function Checkout() {
 
               <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#F0F0F0] px-5 py-2 text-xs sm:text-sm font-semibold text-black">
                 <span>Order ID:</span>
-                <span className="text-black">{placedOrderDetails.orderId}</span>
+                <span className="text-black font-mono">{placedOrderDetails.orderId}</span>
               </div>
 
-              {/* Order Details Card */}
               <div className="mt-8 rounded-[16px] bg-[#F9F9F9] p-5 sm:p-6 text-left text-sm space-y-4">
                 <div className="flex justify-between border-b border-black/10 pb-3">
                   <span className="text-black/60">Order Date</span>
@@ -254,7 +341,6 @@ function Checkout() {
                 </div>
               </div>
 
-              {/* Action button */}
               <div className="mt-8">
                 <Link
                   to="/shop"
@@ -266,7 +352,6 @@ function Checkout() {
             </div>
           </div>
         ) : cart.length === 0 ? (
-          /* EMPTY CART STATE */
           <div className="rounded-[20px] border border-black/10 bg-white py-16 px-4 text-center my-6">
             <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-[#F0F0F0] text-black/40">
               <FiShoppingBag size={36} />
@@ -285,17 +370,21 @@ function Checkout() {
             </Link>
           </div>
         ) : (
-          /* MAIN CHECKOUT LAYOUT */
           <div>
             <h1 className="text-3xl font-black uppercase tracking-tight text-black sm:text-4xl lg:text-[40px] mb-6 sm:mb-8">
               CHECKOUT
             </h1>
 
+            {apiError && (
+              <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-600 flex items-start gap-2.5">
+                <FiAlertCircle size={18} className="shrink-0 mt-0.5" />
+                <span>{apiError}</span>
+              </div>
+            )}
+
             <form onSubmit={handlePlaceOrder} noValidate>
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10 items-start">
-                {/* LEFT COLUMN: Customer, Shipping & Payment Information */}
                 <div className="space-y-6 sm:space-y-8 lg:col-span-7">
-                  {/* 1. Contact Information */}
                   <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-7">
                     <h2 className="text-lg sm:text-xl font-bold text-black mb-4 sm:mb-5">
                       1. Contact Information
@@ -354,7 +443,6 @@ function Checkout() {
                     </div>
                   </div>
 
-                  {/* 2. Shipping Information */}
                   <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-7">
                     <h2 className="text-lg sm:text-xl font-bold text-black mb-4 sm:mb-5">
                       2. Shipping Address
@@ -558,7 +646,6 @@ function Checkout() {
                     </div>
                   </div>
 
-                  {/* 3. Payment Information (Demo) */}
                   <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-7">
                     <div className="flex items-center justify-between mb-4 sm:mb-5">
                       <h2 className="text-lg sm:text-xl font-bold text-black">
@@ -570,7 +657,6 @@ function Checkout() {
                       </div>
                     </div>
 
-                    {/* Method Selector */}
                     <div className="grid grid-cols-2 gap-3 mb-5">
                       <button
                         type="button"
@@ -714,14 +800,12 @@ function Checkout() {
                   </div>
                 </div>
 
-                {/* RIGHT COLUMN: Order Summary */}
                 <div className="lg:col-span-5">
                   <div className="rounded-[20px] border border-black/10 bg-white p-5 sm:p-6 text-black sticky top-6">
                     <h2 className="text-xl sm:text-2xl font-bold text-black mb-5">
                       Order Summary
                     </h2>
 
-                    {/* Review Cart Items */}
                     <div className="max-h-[320px] overflow-y-auto divide-y divide-black/10 pr-1 mb-5 no-scrollbar">
                       {cart.map((item) => (
                         <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -758,7 +842,6 @@ function Checkout() {
                       ))}
                     </div>
 
-                    {/* Breakdown */}
                     <div className="space-y-3.5 border-t border-black/10 pt-4 text-xs sm:text-sm">
                       <div className="flex justify-between text-black/60">
                         <span>Subtotal</span>
@@ -785,12 +868,12 @@ function Checkout() {
                       </div>
                     </div>
 
-                    {/* Place Order Primary Action Button */}
                     <button
                       type="submit"
-                      className="mt-6 w-full rounded-full bg-black py-4 px-6 text-center text-sm sm:text-base font-medium text-white transition-opacity hover:opacity-90 cursor-pointer"
+                      disabled={loading || cart.length === 0}
+                      className="mt-6 w-full rounded-full bg-black py-4 px-6 text-center text-sm sm:text-base font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50 cursor-pointer"
                     >
-                      Place Order
+                      {loading ? "Placing Order..." : "Place Order"}
                     </button>
                   </div>
                 </div>

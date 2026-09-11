@@ -9,7 +9,7 @@ function ProductImages({ images = [], productName = "Product" }) {
 
   return (
     <div className="flex flex-col-reverse gap-3.5 sm:gap-4 lg:flex-row lg:gap-4 w-full">
-      {/* Thumbnails list: Vertical on Desktop, Horizontal on Mobile */}
+      
       <div className="flex flex-row gap-3 overflow-x-auto lg:flex-col lg:gap-3.5 lg:overflow-visible shrink-0 no-scrollbar">
         {displayImages.map((img, index) => {
           const isSelected = selectedImage === index;
@@ -41,7 +41,6 @@ function ProductImages({ images = [], productName = "Product" }) {
         })}
       </div>
 
-      {/* Main Preview Image */}
       <div className="relative aspect-[1/1] w-full flex-1 overflow-hidden rounded-[20px] bg-[#F0EEED] lg:h-[530px]">
         <AnimatePresence mode="wait">
           {activeImage ? (

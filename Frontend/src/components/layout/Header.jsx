@@ -6,16 +6,21 @@ import {
   FiUser,
   FiX,
   FiChevronDown,
+  FiLogOut,
 } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 const Header = () => {
+  const navigate = useNavigate();
   const { cartCount } = useCart();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const shopCategories = [
     "T-Shirts",
@@ -29,12 +34,18 @@ const Header = () => {
     <header className="w-full bg-white text-black">
 
       <div className="relative bg-black px-4 py-2 text-center text-xs text-white sm:text-sm">
-        <p>
-          Sign up and get 20% off your first order.{" "}
-          <span className="cursor-pointer underline">
-            Sign Up Now
-          </span>
-        </p>
+        {!isAuthenticated ? (
+          <p>
+            Sign up and get 20% off your first order.{" "}
+            <Link to="/signup" className="cursor-pointer underline">
+              Sign Up Now
+            </Link>
+          </p>
+        ) : (
+          <p>
+            Welcome to SHOP.CO! Enjoy the best fashion deals and new arrivals.
+          </p>
+        )}
 
         <button
           type="button"
@@ -185,13 +196,61 @@ const Header = () => {
               </Link>
             </div>
 
-            <button
-              type="button"
-              className="block"
-              aria-label="Account"
-            >
-              <FiUser size={22} />
-            </button>
+            {!isAuthenticated || !user ? (
+              <Link
+                to="/login"
+                className="block text-black hover:opacity-70 transition-opacity"
+                aria-label="Account Login"
+              >
+                <FiUser size={22} />
+              </Link>
+            ) : (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                  className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-black text-xs sm:text-sm font-bold text-white transition-opacity hover:opacity-90 cursor-pointer shadow-sm"
+                  aria-label="Account Profile"
+                >
+                  {user.name ? user.name.trim().charAt(0).toUpperCase() : "U"}
+                </button>
+
+                <AnimatePresence>
+                  {isUserMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setIsUserMenuOpen(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 top-full mt-2 z-40 w-56 rounded-2xl border border-black/10 bg-white p-3 shadow-xl"
+                      >
+                        <div className="border-b border-black/10 px-3 py-2.5 mb-2">
+                          <p className="text-xs font-semibold text-black truncate">{user.name}</p>
+                          <p className="text-[11px] text-black/60 truncate">{user.email}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            logout();
+                          }}
+                          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          <FiLogOut size={15} />
+                          <span>Log Out</span>
+                        </button>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </div>
 
@@ -343,6 +402,49 @@ const Header = () => {
                 >
                   Brands
                 </Link>
+
+                {/* Mobile Auth Actions */}
+                {isAuthenticated && user ? (
+                  <div className="pt-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-sm font-bold text-white">
+                        {user.name ? user.name.trim().charAt(0).toUpperCase() : "U"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-black truncate">{user.name}</p>
+                        <p className="text-xs text-black/60 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        logout();
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-full bg-red-50 py-3.5 text-sm font-medium text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <FiLogOut size={16} />
+                      <span>Log Out</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="pt-6 space-y-3">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block rounded-full bg-black py-3.5 text-center text-sm font-medium text-white hover:opacity-90"
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      to="/signup"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="block rounded-full border border-black/10 py-3.5 text-center text-sm font-medium text-black hover:bg-gray-50"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>

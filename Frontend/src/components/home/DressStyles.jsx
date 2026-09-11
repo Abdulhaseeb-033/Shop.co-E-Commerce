@@ -9,7 +9,7 @@ const styles = [
     name: "Casual",
     image: casualImg,
     className: "md:col-span-4",
-    imgPos: "object-right-top",
+    imgPos: "object-left-top",
   },
   {
     name: "Formal",

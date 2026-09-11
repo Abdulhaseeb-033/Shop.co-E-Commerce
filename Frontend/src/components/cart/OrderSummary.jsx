@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FiTag, FiArrowRight } from "react-icons/fi";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
 
 function OrderSummary() {
   const { subtotal, discountTotal, deliveryFee, total, cart } = useCart();
+  const { isAuthenticated } = useAuth();
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(false);
 
@@ -24,15 +26,12 @@ function OrderSummary() {
         Order Summary
       </h2>
 
-      {/* Summary lines */}
       <div className="space-y-4 text-sm sm:text-base">
-        {/* Subtotal */}
         <div className="flex items-center justify-between text-black/60">
           <span>Subtotal</span>
           <span className="font-bold text-black">${subtotal.toFixed(2)}</span>
         </div>
 
-        {/* Discount */}
         <div className="flex items-center justify-between text-black/60">
           <span>Discount ({discountPercent > 0 ? `-${discountPercent}%` : "-0%"})</span>
           <span className="font-bold text-[#FF3333]">
@@ -40,7 +39,6 @@ function OrderSummary() {
           </span>
         </div>
 
-        {/* Delivery Fee */}
         <div className="flex items-center justify-between text-black/60">
           <span>Delivery Fee</span>
           <span className="font-bold text-black">${deliveryFee.toFixed(2)}</span>
@@ -84,9 +82,8 @@ function OrderSummary() {
         </p>
       )}
 
-      {/* Go to Checkout Button */}
       <Link
-        to="/checkout"
+        to={isAuthenticated ? "/checkout" : "/login?redirect=/checkout"}
         className={`mt-5 sm:mt-6 flex w-full items-center justify-center gap-3 rounded-full bg-black py-4 px-6 text-center text-sm sm:text-base font-medium text-white transition-opacity hover:opacity-90 ${
           cart.length === 0 ? "pointer-events-none opacity-50" : ""
         }`}
